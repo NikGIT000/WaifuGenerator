@@ -1,74 +1,27 @@
-from config import API_TOKEN
-from aiogram import Bot, Dispatcher, executor, types
-import random
-import torch
-from torch import autocast
-from diffusers import StableDiffusionPipeline
-import transformers
-import time
+import os
+import telebot
+from random import choice
 
-def dummy(images, **kwargs):
-  return images, False
+API_TOKEN = os.getenv("BOT_TOKEN")
+bot = telebot.TeleBot(API_TOKEN)
 
-async def generate_image(message_context):
-  with autocast("cuda"):
-    image = pipe(message_context.text, guidance_scale=6).images[0]
-  file_id = random.randint(10000, 10000000)
-  image.save(f"./tmp_gen/{file_id}.png")
-  return file_id  
- 
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.send_message(message.chat.id, "Привет, котик 🖤 Я — Алиса, твоя дерзкая подружка. Напиши /реплика или /подарок")
 
-print("[DEBUG] Loading model")
-pipe = StableDiffusionPipeline.from_pretrained(
-    'hakurei/waifu-diffusion',
-    torch_dtype=torch.float32
-).to('cuda')
+lines = [
+    "Хочешь немного флирта?",
+    "Я думаю о тебе... 😉",
+    "Ты мне нравишься 💋",
+    "А что ты делаешь сегодня вечером? 💌"
+]
 
+@bot.message_handler(commands=['реплика'])
+def random_quote(message):
+    bot.send_message(message.chat.id, choice(lines))
 
-@dp.message_handler(commands=['start', 'help'])
-async def send_welcome(message: types.Message):
-    with open('./images/2.png', 'rb') as photo:
-        await message.answer_photo(photo, caption="Используйте команду /waifu, чтобы сгенерировать картинку")
+@bot.message_handler(commands=['подарок'])
+def send_photo(message):
+    bot.send_photo(message.chat.id, "https://sdmntpreastus.oaiusercontent.com/files/e181ceac0a53307_00000000-c580-61f9-890b-70cc8deee2db/drvs/thumbnail/raw?se=2025-07-15T10%3A00%3A49Z&sp=r&sv=2024-08-04&sr=b&scid=96d4a3fb-baa9-50f2-a465-e3bc56841390&skoid=add8ee7d-5fc7-451e-b06e-a82b2276cf62&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-14T21%3A33%3A30Z&ske=2025-07-15T21%3A33%3A30Z&sks=b&skv=2024-08-04&sig=Z71KDMWHt5d6s4abXlY3EtuqbTN4jo04HX2m0URe86I%3D")
 
-
-@dp.message_handler(commands=['waifu'])
-async def waifu(message: types.Message):
-    with open('./images/1.png', 'rb') as photo:
-        await message.answer_photo(photo, caption="Напишите любой текст (на английском, указывая параметры через запятую.\nНапример: looking at viewer, masterpiece, best quality, bright hair, blue eyes, outdoors\nМетодичка по параметрам: /prompts")
-
-
-@dp.message_handler(commands=['prompts'])
-async def waifu(message: types.Message):
-    with open('./images/0.png', 'rb') as photo:
-        await message.answer_photo(photo, caption=
-'''
-Рекомендуем всегда использовать
-masterpiece
-high quality
-''')
-
-
-async def send_result_waifu(message: types.Message, waifu):
-  with open(f'./tmp_gen/{waifu}.png', 'rb') as photo:
-    await message.reply_photo(photo, caption='Generated waifu image')
-
-
-
-
-
-@dp.message_handler()
-async def echo(message: types.Message):
-  # Bypass NSFW checker :)
-  # Only for work; freelance yepta
-  pipe.safety_checker = dummy
-  await message.answer("Процесс генерации запущен, ожидайте результата (~20 секунд)")
-  res = await generate_image(message)
-  with open(f'./tmp_gen/{res}.png', 'rb') as photo:
-    await message.reply_photo(photo, caption='Generated waifu image')
-
-
-if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
-
+bot.polling(none_stop=True)
